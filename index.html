@@ -1,0 +1,1705 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>트립&amp;리뷰노트 — 여행 · 체험단 통합 관리</title>
+
+  <!-- iOS PWA Meta Tags -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="트립리뷰" />
+  <meta name="theme-color" content="#F2F2F7" />
+
+  <!-- iOS Home Screen App Icon (180x180 PNG file) -->
+  <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png" />
+  <link rel="icon" type="image/png" sizes="180x180" href="./apple-touch-icon.png" />
+
+  <!-- Inline Manifest -->
+  <link rel="manifest" href="data:application/manifest+json,%7B%22name%22%3A%22%ED%8A%B8%EB%A6%BD%26%EB%A6%AC%EB%B7%B0%EB%85%B8%ED%8A%B8%22%2C%22short_name%22%3A%22%ED%8A%B8%EB%A6%BD%EB%A6%AC%EB%B7%B0%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%23F2F2F7%22%2C%22theme_color%22%3A%22%23FF5A36%22%7D" />
+
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <style>
+    :root {
+      --bg-primary: #F2F2F7;
+      --bg-card: #FFFFFF;
+      --bg-secondary: #E5E5EA;
+      --text-primary: #1C1C1E;
+      --text-secondary: #6E6E73;
+      --accent: #FF5A36;
+      --trip-accent: #007AFF;
+      --border-color: rgba(60, 60, 67, 0.12);
+      --glass-bg: rgba(249, 249, 251, 0.88);
+    }
+    .dark {
+      --bg-primary: #000000;
+      --bg-card: #1C1C1E;
+      --bg-secondary: #2C2C2E;
+      --text-primary: #F2F2F7;
+      --text-secondary: #98989D;
+      --accent: #FF6B4A;
+      --trip-accent: #0A84FF;
+      --border-color: rgba(255, 255, 255, 0.14);
+      --glass-bg: rgba(28, 28, 30, 0.88);
+    }
+    html, body {
+      overflow-x: hidden;
+    }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', sans-serif;
+      background-color: var(--bg-primary);
+      color: var(--text-primary);
+      -webkit-tap-highlight-color: transparent;
+      transition: background-color 0.2s ease, color 0.2s ease;
+    }
+    .ios-card {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 18px;
+    }
+    .ios-glass {
+      background-color: var(--glass-bg);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-color: var(--border-color);
+    }
+    .safe-top {
+      padding-top: max(12px, env(safe-area-inset-top));
+    }
+    .safe-bottom {
+      padding-bottom: max(10px, env(safe-area-inset-bottom));
+    }
+    .tap-scale:active {
+      transform: scale(0.97);
+    }
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    .modal-scroll {
+      overflow-x: hidden;
+      touch-action: pan-y;
+      overscroll-behavior: contain;
+      -webkit-overflow-scrolling: touch;
+    }
+    .modal-scroll .grid > div {
+      min-width: 0;
+    }
+    .modal-scroll input,
+    .modal-scroll select,
+    .modal-scroll textarea {
+      max-width: 100%;
+      min-width: 0;
+      box-sizing: border-box;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col items-center">
+  <div class="w-full max-w-md min-h-screen flex flex-col relative">
+
+    <!-- Header -->
+    <header class="sticky top-0 z-20 ios-glass border-b safe-top px-5 pb-3 flex items-center justify-between">
+      <div>
+        <p id="header-sub" class="text-[11px] font-semibold uppercase tracking-wider" style="color: var(--trip-accent);">여행 · 체험단 통합 매니저</p>
+        <h1 id="header-title" class="text-2xl font-bold tracking-tight">여행 일정</h1>
+      </div>
+      <div class="flex items-center gap-2">
+        <button id="btn-theme-toggle" type="button" aria-label="다크모드 전환"
+          class="w-9 h-9 rounded-full flex items-center justify-center tap-scale"
+          style="background-color: var(--bg-secondary);">
+          <span id="theme-icon" class="text-base">🌙</span>
+        </button>
+        <button id="btn-header-add" type="button"
+          class="px-3.5 py-2 rounded-full text-xs font-bold text-white tap-scale shadow-sm"
+          style="background-color: var(--trip-accent);">
+          + 추가
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-1 px-4 pt-4 pb-28 space-y-4 overflow-y-auto">
+
+      <!-- TAB 1: TRIP PLANNER -->
+      <section id="tab-trip" class="space-y-3.5">
+        <!-- Trip Selector Row -->
+        <div class="flex items-center gap-2">
+          <div id="trip-tabs-row" class="flex-1 flex gap-1.5 overflow-x-auto no-scrollbar py-0.5"></div>
+          <button id="btn-new-trip" type="button"
+            class="px-3 py-1.5 rounded-full text-xs font-semibold shrink-0 tap-scale"
+            style="background-color: var(--bg-secondary);">
+            + 새 여행
+          </button>
+        </div>
+
+        <!-- Trip Summary Hero Card -->
+        <div class="rounded-2xl p-4 text-white shadow-md" style="background: linear-gradient(135deg, #007AFF 0%, #5856D6 100%);">
+          <div class="flex items-start justify-between gap-2">
+            <div>
+              <p id="trip-hero-dates" class="text-xs font-medium text-white/85">일정 미정</p>
+              <h2 id="trip-hero-name" class="text-xl font-bold tracking-tight mt-0.5">여행을 추가하세요</h2>
+            </div>
+            <button id="btn-edit-trip" type="button" class="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-white/20 backdrop-blur-sm tap-scale">
+              여행 정보
+            </button>
+          </div>
+          <div class="grid grid-cols-3 gap-2 mt-4 pt-3 border-t border-white/20 text-center">
+            <div>
+              <p class="text-[11px] text-white/80">전체 장소</p>
+              <p id="trip-stat-places" class="text-sm font-bold mt-0.5">0곳</p>
+            </div>
+            <div>
+              <p class="text-[11px] text-white/80">체험단 식당</p>
+              <p id="trip-stat-review" class="text-sm font-bold mt-0.5">0곳</p>
+            </div>
+            <div>
+              <p class="text-[11px] text-white/80">여행 절약액</p>
+              <p id="trip-stat-saved" class="text-sm font-bold mt-0.5">0원</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Day & Type Filters -->
+        <div class="flex items-center justify-between gap-2">
+          <div id="trip-day-filter" class="flex gap-1.5 overflow-x-auto no-scrollbar"></div>
+        </div>
+        <div id="trip-type-filter" class="flex gap-1.5 overflow-x-auto no-scrollbar"></div>
+
+        <!-- Trip Places List -->
+        <div id="trip-place-list" class="space-y-3"></div>
+      </section>
+
+      <!-- TAB 2: REVIEW CAMPAIGNS -->
+      <section id="tab-reviews" class="hidden space-y-3.5">
+        <div class="rounded-2xl p-4 text-white shadow-md" style="background: linear-gradient(135deg, #FF6B4A 0%, #FF3B30 100%);">
+          <div class="flex items-start justify-between">
+            <div>
+              <p class="text-xs font-medium text-white/85">누적 할인·제공 혜택</p>
+              <p id="hero-total-saved" class="text-2xl font-bold tracking-tight mt-0.5">0원</p>
+            </div>
+            <span class="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-white/20 backdrop-blur-sm">
+              총 <span id="hero-total-count">0</span>건
+            </span>
+          </div>
+          <div class="grid grid-cols-3 gap-2 mt-4 pt-3 border-t border-white/20 text-center">
+            <div>
+              <p class="text-[11px] text-white/80">진행·예약</p>
+              <p id="hero-active-count" class="text-sm font-bold mt-0.5">0건</p>
+            </div>
+            <div>
+              <p class="text-[11px] text-white/80">마감 임박</p>
+              <p id="hero-urgent-count" class="text-sm font-bold mt-0.5">0건</p>
+            </div>
+            <div>
+              <p class="text-[11px] text-white/80">리뷰 완료</p>
+              <p id="hero-done-count" class="text-sm font-bold mt-0.5">0건</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="relative">
+          <input id="input-search" type="search" placeholder="식당명, 체험단 사이트, 메뉴 검색..."
+            class="w-full pl-9 pr-4 py-2.5 rounded-2xl text-sm outline-none ios-card" />
+          <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm opacity-50">🔍</span>
+        </div>
+
+        <div id="status-filter-row" class="flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5"></div>
+        <div id="platform-filter-row" class="flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5"></div>
+        <div id="campaign-list" class="space-y-3"></div>
+      </section>
+
+      <!-- TAB 3: STATS -->
+      <section id="tab-stats" class="hidden space-y-4">
+        <div class="grid grid-cols-2 gap-3">
+          <div class="ios-card p-4 shadow-sm">
+            <p class="text-xs font-medium" style="color: var(--text-secondary);">총 체험단 할인액</p>
+            <p id="stat-total-saved" class="text-xl font-bold mt-1" style="color: var(--accent);">0원</p>
+          </div>
+          <div class="ios-card p-4 shadow-sm">
+            <p class="text-xs font-medium" style="color: var(--text-secondary);">총 일반·추가 지출</p>
+            <p id="stat-total-spent" class="text-xl font-bold mt-1">0원</p>
+          </div>
+        </div>
+
+        <div class="ios-card p-4 shadow-sm space-y-3">
+          <div class="flex items-center justify-between">
+            <h2 class="text-sm font-bold">체험단 사이트별 할인 비중</h2>
+            <span class="text-xs" style="color: var(--text-secondary);">단위: 원</span>
+          </div>
+          <div class="relative h-56">
+            <canvas id="platform-chart"></canvas>
+          </div>
+        </div>
+
+        <div class="ios-card p-4 shadow-sm space-y-3">
+          <h2 class="text-sm font-bold">체험단별 상세 내역</h2>
+          <div id="stat-platform-list" class="space-y-2.5"></div>
+        </div>
+      </section>
+
+      <!-- TAB 4: PLATFORMS -->
+      <section id="tab-platforms" class="hidden space-y-4">
+        <div class="ios-card p-4 shadow-sm space-y-3">
+          <div>
+            <h2 class="text-sm font-bold">이용 중인 체험단 사이트 추가</h2>
+            <p class="text-xs mt-0.5" style="color: var(--text-secondary);">사용하시는 체험단 플랫폼을 자유롭게 추가·관리하세요.</p>
+          </div>
+          <form id="form-add-platform" class="flex gap-2">
+            <input id="input-new-platform" type="text" placeholder="예: 서울오빠, 미블..."
+              class="flex-1 px-3.5 py-2.5 rounded-xl text-sm outline-none"
+              style="background-color: var(--bg-secondary);" />
+            <button type="submit" class="px-4 py-2.5 rounded-xl text-sm font-semibold text-white tap-scale shrink-0"
+              style="background-color: var(--accent);">
+              추가
+            </button>
+          </form>
+        </div>
+
+        <div class="ios-card p-4 shadow-sm space-y-2.5">
+          <h2 class="text-sm font-bold">등록된 체험단 목록</h2>
+          <div id="platform-manage-list" class="space-y-2"></div>
+        </div>
+      </section>
+
+      <!-- TAB 5: SETTINGS -->
+      <section id="tab-settings" class="hidden space-y-4">
+        <div class="ios-card p-4 shadow-sm space-y-2.5">
+          <h2 class="text-sm font-bold">데이터 백업 및 복원</h2>
+          <p class="text-xs leading-relaxed" style="color: var(--text-secondary);">
+            여행 일정과 체험단 내역이 모두 기기 브라우저에 저장됩니다. 필요 시 JSON으로 복사해 백업하세요.
+          </p>
+          <div class="flex gap-2 pt-1">
+            <button id="btn-export-json" type="button"
+              class="flex-1 py-2.5 rounded-xl text-xs font-semibold text-white tap-scale"
+              style="background-color: var(--accent);">
+              JSON 복사하기
+            </button>
+            <button id="btn-open-import" type="button"
+              class="flex-1 py-2.5 rounded-xl text-xs font-semibold tap-scale"
+              style="background-color: var(--bg-secondary);">
+              백업 불러오기
+            </button>
+          </div>
+        </div>
+
+        <div class="ios-card p-4 shadow-sm flex items-center justify-between">
+          <div>
+            <p class="text-sm font-semibold text-red-500">샘플 데이터로 초기화</p>
+            <p class="text-xs" style="color: var(--text-secondary);">기본 여행 및 체험단 예시로 되돌립니다.</p>
+          </div>
+          <button id="btn-reset-all" type="button"
+            class="px-3.5 py-2 rounded-xl text-xs font-semibold bg-red-500/15 text-red-500 tap-scale">
+            초기화
+          </button>
+        </div>
+      </section>
+    </main>
+
+    <!-- Bottom Tab Bar -->
+    <nav class="fixed bottom-0 w-full max-w-md ios-glass border-t safe-bottom px-2 pt-2 flex justify-around items-center z-20">
+      <button type="button" data-tab="trip" class="nav-tab flex flex-col items-center gap-0.5 tap-scale">
+        <span class="text-xl">🧳</span>
+        <span class="text-[10px] font-semibold">여행</span>
+      </button>
+      <button type="button" data-tab="reviews" class="nav-tab flex flex-col items-center gap-0.5 tap-scale">
+        <span class="text-xl">📋</span>
+        <span class="text-[10px] font-semibold">체험단</span>
+      </button>
+      <button type="button" data-tab="stats" class="nav-tab flex flex-col items-center gap-0.5 tap-scale">
+        <span class="text-xl">📊</span>
+        <span class="text-[10px] font-semibold">통계</span>
+      </button>
+      <button type="button" data-tab="platforms" class="nav-tab flex flex-col items-center gap-0.5 tap-scale">
+        <span class="text-xl">🏷️</span>
+        <span class="text-[10px] font-semibold">사이트</span>
+      </button>
+      <button type="button" data-tab="settings" class="nav-tab flex flex-col items-center gap-0.5 tap-scale">
+        <span class="text-xl">⚙️</span>
+        <span class="text-[10px] font-semibold">설정</span>
+      </button>
+    </nav>
+
+    <!-- MODAL 1: ADD / EDIT TRIP PLACE (WITH REVIEW LINKAGE) -->
+    <div id="trip-place-modal" class="hidden fixed inset-0 z-40 bg-black/50 flex items-end sm:items-center justify-center">
+      <div class="ios-card w-full max-w-md max-h-[88vh] overflow-y-auto modal-scroll rounded-t-3xl sm:rounded-3xl p-5 space-y-3.5 shadow-2xl">
+        <div class="flex items-center justify-between">
+          <h3 id="tp-modal-title" class="text-lg font-bold">여행 장소 추가</h3>
+          <button id="btn-close-tp-modal" type="button" class="text-sm font-semibold px-2 py-1" style="color: var(--text-secondary);">닫기</button>
+        </div>
+
+        <form id="form-trip-place" class="space-y-3">
+          <div>
+            <label class="block text-xs font-semibold mb-1.5" style="color: var(--text-secondary);">방문 구분</label>
+            <div class="grid grid-cols-3 gap-1.5">
+              <button type="button" data-tp-type="일반식당" class="tp-type-btn py-2 rounded-xl text-xs font-semibold">🍽️ 일반 식당</button>
+              <button type="button" data-tp-type="체험단식당" class="tp-type-btn py-2 rounded-xl text-xs font-semibold">🎟️ 체험단 식당</button>
+              <button type="button" data-tp-type="관광·기타" class="tp-type-btn py-2 rounded-xl text-xs font-semibold">📸 관광·카페</button>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2.5">
+            <div>
+              <label class="block text-xs font-semibold mb-1" style="color: var(--text-secondary);">일차 (Day)</label>
+              <select id="tp-day" class="w-full px-3 py-2.5 rounded-xl text-sm outline-none" style="background-color: var(--bg-secondary);">
+                <option value="1">Day 1</option>
+                <option value="2">Day 2</option>
+                <option value="3">Day 3</option>
+                <option value="4">Day 4</option>
+                <option value="5">Day 5</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold mb-1" style="color: var(--text-secondary);">방문 시간</label>
+              <input id="tp-time" type="time" class="w-full px-3 py-2.5 rounded-xl text-sm outline-none" style="background-color: var(--bg-secondary);" />
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold mb-1" style="color: var(--text-secondary);">식당 / 장소명 *</label>
+            <div class="flex gap-2">
+              <input id="tp-name" type="text" placeholder="예: 애월 해물라면, 흑돼지 본점" required
+                class="flex-1 px-3.5 py-2.5 rounded-xl text-sm outline-none" style="background-color: var(--bg-secondary);" />
+              <button id="btn-tp-naver-search" type="button"
+                class="px-2.5 py-2.5 rounded-xl text-xs font-bold text-white bg-emerald-500 tap-scale shrink-0">
+                📍 네이버
+              </button>
+              <button id="btn-tp-google-search" type="button"
+                class="px-2.5 py-2.5 rounded-xl text-xs font-bold text-white bg-blue-500 tap-scale shrink-0">
+                🗺️ 구글
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold mb-1" style="color: var(--text-secondary);">네이버 지도 공유 링크 (선택)</label>
+            <input id="tp-map-url" type="url" placeholder="https://naver.me/..."
+              class="w-full px-3.5 py-2.5 rounded-xl text-sm outline-none" style="background-color: var(--bg-secondary);" />
+          </div>
+
+          <!-- Extra Fields for 일반식당 / 관광 -->
+          <div id="tp-normal-fields" class="space-y-2.5">
+            <div>
+              <label class="block text-xs font-semibold mb-1" style="color: var(--text-secondary);">예상/결제 금액 (원)</label>
+              <input id="tp-cost" type="number" min="0" step="1000" placeholder="35000"
+                class="w-full px-3.5 py-2.5 rounded-xl text-sm outline-none" style="background-color: var(--bg-secondary);" />
+            </div>
+          </div>
+
+          <!-- Extra Fields for 체험단식당 (Linked with Review Tab!) -->
+          <div id="tp-review-fields" class="hidden p-3.5 rounded-2xl space-y-2.5 border" style="border-color: rgba(255,90,54,0.3); background-color: rgba(255,90,54,0.06);">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold" style="color: var(--accent);">🎟️ 체험단 관리 자동 연동</span>
+              <span class="text-[10px]" style="color: var(--text-secondary);">저장 시 체험단 탭에도 반영됩니다</span>
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold mb-1" style="color: var(--text-secondary);">기존 체험단 불러오기 (선택)</label>
+              <select id="tp-link-campaign" class="w-full px-3 py-2 rounded-xl text-xs outline-none" style="background-color: var(--bg-card);">
+                <option value="">+ 새로 연동 등록하기</option>
+              </select>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block text-xs font-semibold mb-1" style="color: var(--text-secondary);">체험단 사이트</label>
+                <select id="tp-platform" class="w-full px-2.5 py-2 rounded-xl text-xs outline-none" style="background-color: var(--bg-card);"></select>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold mb-1" style="color: var(--text-secondary);">리뷰 마감일</label>
+                <input id="tp-due-date" type="date" class="w-full px-2.5 py-2 rounded-xl text-xs outline-none" style="background-color: var(--bg-card);" />
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold mb-1" style="color: var(--text-secondary);">제공 혜택</label>
+              <input id="tp-benefit" type="text" placeholder="예: 2인 흑돼지 세트" class="w-full px-3 py-2 rounded-xl text-xs outline-none" style="background-color: var(--bg-card);" />
+            </div>
+
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block text-xs font-semibold mb-1" style="color: var(--text-secondary);">할인 금액 (원)</label>
+                <input id="tp-saved" type="number" min="0" step="1000" placeholder="50000" class="w-full px-3 py-2 rounded-xl text-xs outline-none" style="background-color: var(--bg-card);" />
+              </div>
+              <div>
+                <label class="block text-xs font-semibold mb-1" style="color: var(--text-secondary);">추가 결제 (원)</label>
+                <input id="tp-spent" type="number" min="0" step="1000" placeholder="0" class="w-full px-3 py-2 rounded-xl text-xs outline-none" style="background-color: var(--bg-card);" />
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold mb-1" style="color: var(--text-secondary);">메모 (메뉴, 주차, 예약 등)</label>
+            <textarea id="tp-memo" rows="2" placeholder="메모를 입력하세요..."
+              class="w-full px-3.5 py-2 rounded-xl text-sm outline-none resize-none" style="background-color: var(--bg-secondary);"></textarea>
+          </div>
+
+          <div class="flex gap-2 pt-1">
+            <button id="btn-delete-tp" type="button" class="hidden px-4 py-3 rounded-xl text-sm font-semibold bg-red-500/15 text-red-500 tap-scale">삭제</button>
+            <button type="submit" class="flex-1 py-3 rounded-xl text-sm font-bold text-white tap-scale" style="background-color: var(--trip-accent);">저장하기</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- MODAL 2: ADD / EDIT TRIP PROJECT -->
+    <div id="trip-modal" class="hidden fixed inset-0 z-40 bg-black/50 flex items-end sm:items-center justify-center">
+      <div class="ios-card w-full max-w-md max-h-[88vh] overflow-y-auto modal-scroll rounded-t-3xl sm:rounded-3xl p-5 space-y-3.5 shadow-2xl">
+        <div class="flex items-center justify-between">
+          <h3 id="trip-modal-title" class="text-lg font-bold">새 여행 만들기</h3>
+          <button id="btn-close-trip-modal" type="button" class="text-sm font-semibold px-2 py-1" style="color: var(--text-secondary);">닫기</button>
+        </div>
+        <form id="form-trip" class="space-y-3">
+          <div>
+            <label class="block text-xs font-semibold mb-1" style="color: var(--text-secondary);">여행 이름 *</label>
+            <input id="trip-name-input" type="text" placeholder="예: 제주도 3박 4일" required
+              class="w-full px-3.5 py-2.5 rounded-xl text-sm outline-none" style="background-color: var(--bg-secondary);" />
+          </div>
+          <div class="grid grid-cols-2 gap-2.5">
+            <div>
+              <label class="block text-xs font-semibold mb-1" style="color: var(--text-secondary);">시작일</label>
+              <input id="trip-start-input" type="date" class="w-full px-3 py-2.5 rounded-xl text-sm outline-none" style="background-color: var(--bg-secondary);" />
+            </div>
+            <div>
+              <label class="block text-xs font-semibold mb-1" style="color: var(--text-secondary);">종료일</label>
+              <input id="trip-end-input" type="date" class="w-full px-3 py-2.5 rounded-xl text-sm outline-none" style="background-color: var(--bg-secondary);" />
+            </div>
+          </div>
+          <div class="flex gap-2 pt-1">
+            <button id="btn-delete-trip" type="button" class="hidden px-4 py-3 rounded-xl text-sm font-semibold bg-red-500/15 text-red-500 tap-scale">삭제</button>
+            <button type="submit" class="flex-1 py-3 rounded-xl text-sm font-bold text-white tap-scale" style="background-color: var(--trip-accent);">저장하기</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- MODAL 3: ADD / EDIT REVIEW CAMPAIGN -->
+    <div id="campaign-modal" class="hidden fixed inset-0 z-40 bg-black/50 flex items-end sm:items-center justify-center">
+      <div class="ios-card w-full max-w-md max-h-[88vh] overflow-y-auto modal-scroll rounded-t-3xl sm:rounded-3xl p-5 space-y-3.5 shadow-2xl">
+        <div class="flex items-center justify-between">
+          <h3 id="modal-title" class="text-lg font-bold">체험단 등록</h3>
+          <button id="btn-close-modal" type="button" class="text-sm font-semibold px-2 py-1" style="color: var(--text-secondary);">닫기</button>
+        </div>
+
+        <form id="form-campaign" class="space-y-3">
+          <div class="grid grid-cols-2 gap-2.5">
+            <div>
+              <label class="block text-xs font-semibold mb-1" style="color: var(--text-secondary);">체험단 사이트</label>
+              <select id="field-platform" class="w-full px-3 py-2.5 rounded-xl text-sm outline-none" style="background-color: var(--bg-secondary);"></select>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold mb-1" style="color: var(--text-secondary);">진행 상태</label>
+              <select id="field-status" class="w-full px-3 py-2.5 rounded-xl text-sm outline-none" style="background-color: var(--bg-secondary);">
+                <option value="신청함">신청함</option>
+                <option value="선정·예약">선정·예약</option>
+                <option value="방문완료">방문완료</option>
+                <option value="리뷰완료">리뷰완료</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold mb-1" style="color: var(--text-secondary);">식당 / 업체명 *</label>
+            <div class="flex gap-2">
+              <input id="field-place" type="text" placeholder="예: 나주 빛가람 OO초밥" required
+                class="flex-1 px-3.5 py-2.5 rounded-xl text-sm outline-none" style="background-color: var(--bg-secondary);" />
+              <button id="btn-modal-naver-search" type="button"
+                class="px-2.5 py-2.5 rounded-xl text-xs font-bold text-white bg-emerald-500 tap-scale shrink-0">
+                📍 네이버
+              </button>
+              <button id="btn-modal-google-search" type="button"
+                class="px-2.5 py-2.5 rounded-xl text-xs font-bold text-white bg-blue-500 tap-scale shrink-0">
+                🗺️ 구글
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold mb-1" style="color: var(--text-secondary);">네이버 지도 링크 (선택)</label>
+            <input id="field-map-url" type="url" placeholder="https://naver.me/..."
+              class="w-full px-3.5 py-2.5 rounded-xl text-sm outline-none" style="background-color: var(--bg-secondary);" />
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold mb-1" style="color: var(--text-secondary);">제공 혜택 내용</label>
+            <input id="field-benefit" type="text" placeholder="예: 2인 모둠초밥 세트"
+              class="w-full px-3.5 py-2.5 rounded-xl text-sm outline-none" style="background-color: var(--bg-secondary);" />
+          </div>
+
+          <div class="grid grid-cols-2 gap-2.5">
+            <div>
+              <label class="block text-xs font-semibold mb-1" style="color: var(--text-secondary);">할인받은 금액 (원)</label>
+              <input id="field-saved" type="number" min="0" step="1000" placeholder="50000"
+                class="w-full px-3.5 py-2.5 rounded-xl text-sm outline-none" style="background-color: var(--bg-secondary);" />
+            </div>
+            <div>
+              <label class="block text-xs font-semibold mb-1" style="color: var(--text-secondary);">본인 추가결제 (원)</label>
+              <input id="field-spent" type="number" min="0" step="1000" placeholder="0"
+                class="w-full px-3.5 py-2.5 rounded-xl text-sm outline-none" style="background-color: var(--bg-secondary);" />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2.5">
+            <div>
+              <label class="block text-xs font-semibold mb-1" style="color: var(--text-secondary);">방문 예정일</label>
+              <input id="field-visit-date" type="date"
+                class="w-full px-3 py-2.5 rounded-xl text-sm outline-none" style="background-color: var(--bg-secondary);" />
+            </div>
+            <div>
+              <label class="block text-xs font-semibold mb-1" style="color: var(--text-secondary);">리뷰 마감일</label>
+              <input id="field-due-date" type="date"
+                class="w-full px-3 py-2.5 rounded-xl text-sm outline-none" style="background-color: var(--bg-secondary);" />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-3 gap-2.5">
+            <div class="col-span-2">
+              <label class="block text-xs font-semibold mb-1" style="color: var(--text-secondary);">필수 키워드 (선택)</label>
+              <input id="field-keywords" type="text" placeholder="예: 나주맛집, 빛가람동"
+                class="w-full px-3 py-2.5 rounded-xl text-sm outline-none" style="background-color: var(--bg-secondary);" />
+            </div>
+            <div>
+              <label class="block text-xs font-semibold mb-1" style="color: var(--text-secondary);">사진 (장)</label>
+              <input id="field-photo-count" type="number" min="0" placeholder="15"
+                class="w-full px-3 py-2.5 rounded-xl text-sm outline-none" style="background-color: var(--bg-secondary);" />
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold mb-1" style="color: var(--text-secondary);">가이드라인 / 메모</label>
+            <textarea id="field-memo" rows="2" placeholder="메모를 입력하세요..."
+              class="w-full px-3.5 py-2 rounded-xl text-sm outline-none resize-none" style="background-color: var(--bg-secondary);"></textarea>
+          </div>
+
+          <div class="flex gap-2 pt-1">
+            <button id="btn-delete-campaign" type="button" class="hidden px-4 py-3 rounded-xl text-sm font-semibold bg-red-500/15 text-red-500 tap-scale">삭제</button>
+            <button type="submit" class="flex-1 py-3 rounded-xl text-sm font-bold text-white tap-scale" style="background-color: var(--accent);">저장하기</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- MODAL 4: IMPORT JSON -->
+    <div id="import-modal" class="hidden fixed inset-0 z-40 bg-black/50 flex items-center justify-center p-4">
+      <div class="ios-card w-full max-w-md p-5 space-y-3 shadow-2xl modal-scroll">
+        <div class="flex items-center justify-between">
+          <h3 class="text-base font-bold">JSON 백업 불러오기</h3>
+          <button id="btn-close-import" type="button" class="text-xs font-semibold" style="color: var(--text-secondary);">닫기</button>
+        </div>
+        <textarea id="input-import-json" rows="5" placeholder="복사해 둔 JSON 데이터를 여기에 붙여넣으세요..."
+          class="w-full p-3 rounded-xl text-xs outline-none resize-none" style="background-color: var(--bg-secondary);"></textarea>
+        <button id="btn-confirm-import" type="button" class="w-full py-2.5 rounded-xl text-sm font-bold text-white tap-scale" style="background-color: var(--accent);">복원하기</button>
+      </div>
+    </div>
+
+    <!-- Toast -->
+    <div id="toast" class="hidden fixed top-16 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-full text-xs font-semibold text-white bg-gray-900/90 shadow-lg">
+      알림
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      var STORAGE_KEY = 'trip_review_pwa_v1';
+      var STATUSES = ['전체', '신청함', '선정·예약', '방문완료', '리뷰완료'];
+
+      function offsetDate(days) {
+        var d = new Date();
+        d.setDate(d.getDate() + days);
+        return d.toISOString().slice(0, 10);
+      }
+
+      var defaultState = {
+        theme: 'light',
+        activeTab: 'trip',
+        activeTripId: 'tr1',
+        tripDayFilter: '전체',
+        tripTypeFilter: '전체',
+        statusFilter: '전체',
+        platformFilter: '전체',
+        platforms: ['강남맛집', '레뷰', '디너의여왕', '리뷰노트', '슈퍼멤버스'],
+        trips: [
+          {
+            id: 'tr1',
+            name: '제주 가을 여행',
+            startDate: offsetDate(1),
+            endDate: offsetDate(3),
+            places: [
+              {
+                id: 'tp1',
+                day: 1,
+                time: '12:30',
+                type: '일반식당',
+                name: '올래국수 본점',
+                mapUrl: '',
+                cost: 22000,
+                campaignId: null,
+                memo: '고기국수 2그릇, 웨이팅 미리 확인'
+              },
+              {
+                id: 'tp2',
+                day: 1,
+                time: '18:30',
+                type: '체험단식당',
+                name: '애월 흑돼지 숙성로',
+                mapUrl: '',
+                cost: 0,
+                campaignId: 'c_trip_1',
+                memo: '저녁 6시 30분 예약 완료'
+              },
+              {
+                id: 'tp3',
+                day: 2,
+                time: '14:00',
+                type: '관광·기타',
+                name: '새별오름 & 카페',
+                mapUrl: '',
+                cost: 15000,
+                campaignId: null,
+                memo: '노을 시간 전에 방문'
+              }
+            ]
+          }
+        ],
+        campaigns: [
+          {
+            id: 'c_trip_1',
+            platform: '레뷰',
+            place: '애월 흑돼지 숙성로',
+            tripName: '제주 가을 여행',
+            status: '선정·예약',
+            benefit: '흑돼지 근고기 2인 세트',
+            savedAmount: 68000,
+            spentAmount: 0,
+            visitDate: offsetDate(1),
+            dueDate: offsetDate(7),
+            keywords: '애월맛집, 제주흑돼지',
+            photoCount: 15,
+            checks: { keyword: false, photos: false, map: false, sponsor: false },
+            memo: '여행 1일차 저녁 방문 예정'
+          },
+          {
+            id: 'c1',
+            platform: '강남맛집',
+            place: '오스테리아 노마',
+            tripName: '',
+            status: '방문완료',
+            benefit: '파스타+스테이크 2인 식사권',
+            savedAmount: 65000,
+            spentAmount: 12000,
+            visitDate: offsetDate(-1),
+            dueDate: offsetDate(2),
+            keywords: '성수파스타, 오스테리아노마',
+            photoCount: 15,
+            checks: { keyword: true, photos: true, map: false, sponsor: false },
+            memo: '사진 15장 이상, 본문 1000자, 지도 첨부 필수'
+          },
+          {
+            id: 'c3',
+            platform: '리뷰노트',
+            place: '연남동 커피바 에크루',
+            tripName: '',
+            status: '리뷰완료',
+            benefit: '시그니처 음료 2잔 + 디저트 1',
+            savedAmount: 24000,
+            spentAmount: 0,
+            visitDate: offsetDate(-5),
+            dueDate: offsetDate(-2),
+            keywords: '연남동카페, 에크루',
+            photoCount: 10,
+            checks: { keyword: true, photos: true, map: true, sponsor: true },
+            memo: '블로그 포스팅 완료 및 URL 등록 완료'
+          }
+        ]
+      };
+
+      function loadState() {
+        try {
+          var raw = localStorage.getItem(STORAGE_KEY);
+          if (raw) {
+            return Object.assign({}, JSON.parse(JSON.stringify(defaultState)), JSON.parse(raw));
+          }
+          var legacy = localStorage.getItem('review_note_pwa_v2');
+          if (legacy) {
+            var old = JSON.parse(legacy);
+            var migrated = JSON.parse(JSON.stringify(defaultState));
+            if (Array.isArray(old.platforms)) migrated.platforms = old.platforms;
+            if (Array.isArray(old.campaigns)) migrated.campaigns = old.campaigns;
+            return migrated;
+          }
+        } catch (e) {}
+        return JSON.parse(JSON.stringify(defaultState));
+      }
+
+      function saveState() {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        } catch (e) {}
+      }
+
+      var state = loadState();
+      var editingCampaignId = null;
+      var editingTripId = null;
+      var editingPlaceId = null;
+      var selectedTpType = '일반식당';
+      var chartInstance = null;
+      var toastTimer = null;
+      var savedScrollY = 0;
+
+      function lockBodyScroll() {
+        savedScrollY = window.scrollY || window.pageYOffset || 0;
+        document.body.style.position = 'fixed';
+        document.body.style.top = '-' + savedScrollY + 'px';
+        document.body.style.left = '0';
+        document.body.style.right = '0';
+        document.body.style.width = '100%';
+        document.body.style.overflow = 'hidden';
+      }
+
+      function unlockBodyScroll() {
+        document.body.style.position = '';
+        document.body.style.top = '';
+        document.body.style.left = '';
+        document.body.style.right = '';
+        document.body.style.width = '';
+        document.body.style.overflow = '';
+        window.scrollTo(0, savedScrollY);
+      }
+
+      function showToast(msg) {
+        var el = document.getElementById('toast');
+        el.textContent = msg;
+        el.classList.remove('hidden');
+        if (toastTimer) clearTimeout(toastTimer);
+        toastTimer = setTimeout(function () { el.classList.add('hidden'); }, 2200);
+      }
+
+      function formatWon(n) {
+        return (Number(n) || 0).toLocaleString('ko-KR') + '원';
+      }
+
+      function escapeHtml(str) {
+        return String(str || '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;');
+      }
+
+      function openNaverMap(name, mapUrl) {
+        var url = (mapUrl && /^https?:\/\//i.test(mapUrl.trim()))
+          ? mapUrl.trim()
+          : 'https://map.naver.com/p/search/' + encodeURIComponent(name);
+        window.open(url, '_blank', 'noopener,noreferrer');
+      }
+
+      function openGoogleMap(name, googleUrl) {
+        var url = (googleUrl && /^https?:\/\//i.test(googleUrl.trim()))
+          ? googleUrl.trim()
+          : 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(name);
+        window.open(url, '_blank', 'noopener,noreferrer');
+      }
+
+      function getTripDayDateLabel(trip, dayNum) {
+        if (!trip || !trip.startDate) return '';
+        var d = new Date(trip.startDate + 'T00:00:00');
+        if (isNaN(d.getTime())) return '';
+        d.setDate(d.getDate() + (Number(dayNum) - 1));
+        var days = ['일', '월', '화', '수', '목', '금', '토'];
+        return (d.getMonth() + 1) + '/' + d.getDate() + '(' + days[d.getDay()] + ')';
+      }
+
+      function getCurrentTrip() {
+        var found = state.trips.find(function (t) { return t.id === state.activeTripId; });
+        if (!found && state.trips.length > 0) {
+          found = state.trips[0];
+          state.activeTripId = found.id;
+        }
+        return found || null;
+      }
+
+      function getDDayInfo(dueDate, status) {
+        if (status === '리뷰완료') return { text: '완료', cls: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' };
+        if (!dueDate) return { text: '일정 미정', cls: 'bg-gray-500/15 text-gray-500' };
+        var today = new Date();
+        today.setHours(0, 0, 0, 0);
+        var due = new Date(dueDate + 'T00:00:00');
+        var diff = Math.round((due - today) / 86400000);
+        if (diff < 0) return { text: 'D+' + Math.abs(diff) + ' 지남', cls: 'bg-red-500/20 text-red-500' };
+        if (diff === 0) return { text: '오늘 마감', cls: 'bg-red-500 text-white' };
+        if (diff <= 3) return { text: 'D-' + diff, cls: 'bg-amber-500/20 text-amber-600 dark:text-amber-400' };
+        return { text: 'D-' + diff, cls: 'bg-blue-500/15 text-blue-500' };
+      }
+
+      function isUrgent(c) {
+        if (c.status === '리뷰완료' || !c.dueDate) return false;
+        var today = new Date();
+        today.setHours(0, 0, 0, 0);
+        var due = new Date(c.dueDate + 'T00:00:00');
+        return Math.round((due - today) / 86400000) <= 3;
+      }
+
+      function applyTheme() {
+        var dark = state.theme === 'dark';
+        document.documentElement.classList.toggle('dark', dark);
+        document.getElementById('theme-icon').textContent = dark ? '☀️' : '🌙';
+      }
+
+      function renderTabs() {
+        var titles = { trip: '여행 일정', reviews: '체험단 내역', stats: '통계·정산', platforms: '체험단 사이트', settings: '설정·백업' };
+        document.getElementById('header-title').textContent = titles[state.activeTab] || '여행 일정';
+
+        var addBtn = document.getElementById('btn-header-add');
+        if (state.activeTab === 'trip') {
+          addBtn.classList.remove('hidden');
+          addBtn.textContent = '+ 장소 추가';
+          addBtn.style.backgroundColor = 'var(--trip-accent)';
+        } else if (state.activeTab === 'reviews') {
+          addBtn.classList.remove('hidden');
+          addBtn.textContent = '+ 체험단 등록';
+          addBtn.style.backgroundColor = 'var(--accent)';
+        } else {
+          addBtn.classList.add('hidden');
+        }
+
+        ['trip', 'reviews', 'stats', 'platforms', 'settings'].forEach(function (t) {
+          document.getElementById('tab-' + t).classList.toggle('hidden', state.activeTab !== t);
+        });
+        document.querySelectorAll('.nav-tab').forEach(function (btn) {
+          var tab = btn.getAttribute('data-tab');
+          var active = tab === state.activeTab;
+          btn.style.color = active ? (tab === 'trip' ? 'var(--trip-accent)' : 'var(--accent)') : 'var(--text-secondary)';
+        });
+
+        if (state.activeTab === 'trip') renderTrip();
+        if (state.activeTab === 'reviews') renderReviews();
+        if (state.activeTab === 'stats') renderStats();
+        if (state.activeTab === 'platforms') renderPlatformsManage();
+      }
+
+      function renderTrip() {
+        var trip = getCurrentTrip();
+        document.getElementById('trip-tabs-row').innerHTML = state.trips.map(function (t) {
+          var active = trip && t.id === trip.id;
+          return '<button type="button" data-trip-id="' + t.id + '" class="px-3 py-1.5 rounded-full text-xs font-semibold shrink-0 transition ' +
+            (active ? 'text-white' : '') + '" style="' + (active ? 'background-color: var(--trip-accent);' : 'background-color: var(--bg-secondary);') + '">' +
+            escapeHtml(t.name) + '</button>';
+        }).join('');
+
+        if (!trip) {
+          document.getElementById('trip-hero-name').textContent = '등록된 여행이 없습니다';
+          document.getElementById('trip-hero-dates').textContent = '+ 새 여행 버튼으로 시작하세요';
+          document.getElementById('trip-stat-places').textContent = '0곳';
+          document.getElementById('trip-stat-review').textContent = '0곳';
+          document.getElementById('trip-stat-saved').textContent = '0원';
+          document.getElementById('trip-place-list').innerHTML = '';
+          return;
+        }
+
+        document.getElementById('trip-hero-name').textContent = trip.name;
+        document.getElementById('trip-hero-dates').textContent = (trip.startDate && trip.endDate)
+          ? (trip.startDate + ' ~ ' + trip.endDate) : '여행 날짜 미정';
+
+        var reviewPlaces = trip.places.filter(function (p) { return p.type === '체험단식당'; });
+        var tripSaved = 0;
+        reviewPlaces.forEach(function (p) {
+          var c = state.campaigns.find(function (item) { return item.id === p.campaignId; });
+          if (c) tripSaved += Number(c.savedAmount) || 0;
+        });
+
+        document.getElementById('trip-stat-places').textContent = trip.places.length + '곳';
+        document.getElementById('trip-stat-review').textContent = reviewPlaces.length + '곳';
+        document.getElementById('trip-stat-saved').textContent = formatWon(tripSaved);
+
+        var days = ['전체', 'Day 1', 'Day 2', 'Day 3', 'Day 4', 'Day 5'];
+        document.getElementById('trip-day-filter').innerHTML = days.map(function (d) {
+          var active = state.tripDayFilter === d;
+          var dateSub = '';
+          if (d !== '전체') {
+            var num = Number(d.replace('Day ', ''));
+            var lbl = getTripDayDateLabel(trip, num);
+            if (lbl) dateSub = '<span class="block text-[10px] font-normal ' + (active ? 'text-white/85' : 'opacity-70') + '">' + lbl + '</span>';
+          }
+          return '<button type="button" data-day="' + d + '" class="px-3 py-1.5 rounded-2xl text-xs font-semibold shrink-0 text-center leading-tight ' +
+            (active ? 'text-white' : '') + '" style="' + (active ? 'background-color: var(--trip-accent);' : 'background-color: var(--bg-secondary);') + '">' +
+            '<span>' + d + '</span>' + dateSub + '</button>';
+        }).join('');
+
+        var types = ['전체', '일반식당', '체험단식당', '관광·기타'];
+        document.getElementById('trip-type-filter').innerHTML = types.map(function (tp) {
+          var active = state.tripTypeFilter === tp;
+          var label = tp === '일반식당' ? '🍽️ 일반 식당' : tp === '체험단식당' ? '🎟️ 체험단 식당' : tp === '관광·기타' ? '📸 관광·카페' : '전체 구분';
+          return '<button type="button" data-tp-filter="' + tp + '" class="px-2.5 py-1 rounded-lg text-[11px] font-semibold shrink-0 border ' +
+            (active ? 'border-transparent text-white bg-gray-800 dark:bg-white dark:text-black' : '') + '" style="' +
+            (active ? '' : 'border-color: var(--border-color); color: var(--text-secondary);') + '">' + label + '</button>';
+        }).join('');
+
+        var filtered = trip.places.filter(function (p) {
+          if (state.tripDayFilter !== '전체' && ('Day ' + p.day) !== state.tripDayFilter) return false;
+          if (state.tripTypeFilter !== '전체' && p.type !== state.tripTypeFilter) return false;
+          return true;
+        }).sort(function (a, b) {
+          if (a.day !== b.day) return a.day - b.day;
+          return (a.time || '').localeCompare(b.time || '');
+        });
+
+        var listEl = document.getElementById('trip-place-list');
+        if (filtered.length === 0) {
+          listEl.innerHTML = '<div class="ios-card p-8 text-center text-sm" style="color: var(--text-secondary);">등록된 장소가 없습니다.<br/>오른쪽 위 <strong>+ 장소 추가</strong>를 눌러 식당을 추가해 보세요.</div>';
+          return;
+        }
+
+        listEl.innerHTML = filtered.map(function (p) {
+          var isRev = p.type === '체험단식당';
+          var linked = isRev ? state.campaigns.find(function (c) { return c.id === p.campaignId; }) : null;
+          var typeBadge = isRev
+            ? '<span class="px-2 py-0.5 rounded-md text-[11px] font-bold bg-orange-500/15 text-orange-600 dark:text-orange-400">🎟️ 체험단 식당</span>'
+            : p.type === '일반식당'
+              ? '<span class="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-blue-500/15 text-blue-500">🍽️ 일반 식당</span>'
+              : '<span class="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">📸 관광·카페</span>';
+
+          return (
+            '<div class="ios-card p-4 shadow-sm space-y-2">' +
+              '<div class="flex items-center justify-between gap-2">' +
+                '<div class="flex items-center gap-1.5 flex-wrap">' +
+                  (function () {
+                    var dl = getTripDayDateLabel(trip, p.day);
+                    return '<span class="px-2 py-0.5 rounded-md text-[11px] font-bold" style="background-color: var(--bg-secondary);">Day ' + p.day + (dl ? ' (' + dl + ')' : '') + (p.time ? ' · ' + p.time : '') + '</span>';
+                  })() +
+                  typeBadge +
+                '</div>' +
+                (linked ? '<span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-orange-500 text-white">' + escapeHtml(linked.platform) + '</span>' : '') +
+              '</div>' +
+
+              '<button type="button" data-tp-action="edit" data-id="' + p.id + '" class="w-full text-left space-y-1">' +
+                '<h3 class="text-base font-bold">' + escapeHtml(p.name) + '</h3>' +
+                (linked ? '<p class="text-xs font-medium" style="color: var(--accent);">🎁 ' + escapeHtml(linked.benefit || '체험단 연동됨') + ' · 할인 ' + formatWon(linked.savedAmount) + '</p>' : '') +
+                (!isRev && Number(p.cost) > 0 ? '<p class="text-xs" style="color: var(--text-secondary);">💳 예상/결제 ' + formatWon(p.cost) + '</p>' : '') +
+                (p.memo ? '<p class="text-xs" style="color: var(--text-secondary);">' + escapeHtml(p.memo) + '</p>' : '') +
+              '</button>' +
+
+              '<div class="flex items-center justify-between pt-2 border-t text-xs" style="border-color: var(--border-color);">' +
+                '<div class="flex items-center gap-1.5">' +
+                  '<button type="button" data-tp-action="map" data-id="' + p.id + '" class="px-2.5 py-1 rounded-lg font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/15 tap-scale">📍 네이버</button>' +
+                  '<button type="button" data-tp-action="gmap" data-id="' + p.id + '" class="px-2.5 py-1 rounded-lg font-semibold text-blue-600 dark:text-blue-400 bg-blue-500/15 tap-scale">🗺️ 구글</button>' +
+                '</div>' +
+                (linked
+                  ? '<button type="button" data-tp-action="go-review" data-cid="' + linked.id + '" class="px-2.5 py-1 rounded-lg font-semibold tap-scale" style="background-color: var(--bg-secondary);">체험단 상세 →</button>'
+                  : '<span class="text-[11px]" style="color: var(--text-secondary);">일반 기록</span>') +
+              '</div>' +
+            '</div>'
+          );
+        }).join('');
+      }
+
+      function renderReviews() {
+        var totalSaved = 0, activeCount = 0, urgentCount = 0, doneCount = 0;
+        state.campaigns.forEach(function (c) {
+          if (c.status === '방문완료' || c.status === '리뷰완료') totalSaved += Number(c.savedAmount) || 0;
+          if (c.status === '선정·예약' || c.status === '방문완료') activeCount += 1;
+          if (c.status === '리뷰완료') doneCount += 1;
+          if (isUrgent(c)) urgentCount += 1;
+        });
+
+        document.getElementById('hero-total-saved').textContent = formatWon(totalSaved);
+        document.getElementById('hero-total-count').textContent = String(state.campaigns.length);
+        document.getElementById('hero-active-count').textContent = activeCount + '건';
+        document.getElementById('hero-urgent-count').textContent = urgentCount + '건';
+        document.getElementById('hero-done-count').textContent = doneCount + '건';
+
+        document.getElementById('status-filter-row').innerHTML = STATUSES.map(function (st) {
+          var active = state.statusFilter === st;
+          return '<button type="button" data-status="' + st + '" class="px-3 py-1.5 rounded-full text-xs font-semibold shrink-0 ' +
+            (active ? 'text-white' : '') + '" style="' + (active ? 'background-color: var(--accent);' : 'background-color: var(--bg-secondary);') + '">' + st + '</button>';
+        }).join('');
+
+        var platOptions = ['전체'].concat(state.platforms);
+        document.getElementById('platform-filter-row').innerHTML = platOptions.map(function (p) {
+          var active = state.platformFilter === p;
+          return '<button type="button" data-plat="' + escapeHtml(p) + '" class="px-2.5 py-1 rounded-lg text-[11px] font-medium shrink-0 border ' +
+            (active ? 'border-transparent text-white bg-gray-800 dark:bg-white dark:text-black' : '') + '" style="' +
+            (active ? '' : 'border-color: var(--border-color); color: var(--text-secondary);') + '">' + escapeHtml(p) + '</button>';
+        }).join('');
+
+        var query = (document.getElementById('input-search').value || '').trim().toLowerCase();
+        var filtered = state.campaigns.filter(function (c) {
+          if (state.statusFilter !== '전체' && c.status !== state.statusFilter) return false;
+          if (state.platformFilter !== '전체' && c.platform !== state.platformFilter) return false;
+          if (query) {
+            var hay = (c.place + ' ' + c.platform + ' ' + c.benefit + ' ' + c.memo + ' ' + (c.tripName || '')).toLowerCase();
+            if (hay.indexOf(query) === -1) return false;
+          }
+          return true;
+        });
+
+        var listEl = document.getElementById('campaign-list');
+        if (filtered.length === 0) {
+          listEl.innerHTML = '<div class="ios-card p-8 text-center text-sm" style="color: var(--text-secondary);">조건에 맞는 체험단 내역이 없습니다.</div>';
+          return;
+        }
+
+        listEl.innerHTML = filtered.map(function (c) {
+          var dday = getDDayInfo(c.dueDate, c.status);
+          var statusBadgeCls = c.status === '리뷰완료' ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+            : c.status === '방문완료' ? 'bg-purple-500/15 text-purple-500'
+            : c.status === '선정·예약' ? 'bg-blue-500/15 text-blue-500'
+            : 'bg-gray-500/15 text-gray-500';
+          var ch = c.checks || {};
+          var photoLabel = (Number(c.photoCount) > 0) ? ('사진 ' + c.photoCount + '장') : '사진';
+          var checkItems = [
+            { key: 'keyword', label: '키워드' },
+            { key: 'photos', label: photoLabel },
+            { key: 'map', label: '지도첨부' },
+            { key: 'sponsor', label: '배너' }
+          ];
+
+          return (
+            '<div class="ios-card p-4 shadow-sm space-y-2.5">' +
+              '<div class="flex items-center justify-between gap-2">' +
+                '<div class="flex items-center gap-1.5 flex-wrap">' +
+                  '<span class="px-2 py-0.5 rounded-md text-[11px] font-bold bg-orange-500/15 text-orange-600 dark:text-orange-400">' + escapeHtml(c.platform) + '</span>' +
+                  '<span class="px-2 py-0.5 rounded-md text-[11px] font-semibold ' + statusBadgeCls + '">' + escapeHtml(c.status) + '</span>' +
+                  (c.tripName ? '<span class="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-blue-500/15 text-blue-500">✈️ ' + escapeHtml(c.tripName) + '</span>' : '') +
+                '</div>' +
+                '<span class="px-2 py-0.5 rounded-full text-[11px] font-bold ' + dday.cls + '">' + dday.text + '</span>' +
+              '</div>' +
+
+              '<button type="button" data-action="edit" data-id="' + c.id + '" class="w-full text-left space-y-1">' +
+                '<h3 class="text-base font-bold leading-snug">' + escapeHtml(c.place) + '</h3>' +
+                '<p class="text-xs" style="color: var(--text-secondary);">🎁 ' + escapeHtml(c.benefit || '혜택 미입력') + '</p>' +
+                (c.keywords ? '<p class="text-[11px] font-medium text-blue-500 truncate">#' + escapeHtml(c.keywords) + '</p>' : '') +
+              '</button>' +
+
+              '<div class="flex flex-wrap gap-1.5 pt-0.5">' +
+                checkItems.map(function (it) {
+                  var checked = !!ch[it.key];
+                  return '<button type="button" data-action="toggle-check" data-id="' + c.id + '" data-check="' + it.key + '" ' +
+                    'class="px-2 py-1 rounded-lg text-[11px] font-semibold transition tap-scale ' +
+                    (checked ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' : 'opacity-65') + '" ' +
+                    (checked ? '' : 'style="background-color: var(--bg-secondary);"') + '>' +
+                    (checked ? '☑ ' : '☐ ') + escapeHtml(it.label) + '</button>';
+                }).join('') +
+              '</div>' +
+
+              '<div class="flex items-center justify-between pt-2 border-t text-xs" style="border-color: var(--border-color);">' +
+                '<div class="flex items-center gap-3">' +
+                  '<span>할인 <strong style="color: var(--accent);">' + formatWon(c.savedAmount) + '</strong></span>' +
+                  (Number(c.spentAmount) > 0 ? '<span style="color: var(--text-secondary);">추가 ' + formatWon(c.spentAmount) + '</span>' : '') +
+                '</div>' +
+                '<div class="flex items-center gap-1.5">' +
+                  '<button type="button" data-action="open-map" data-id="' + c.id + '" class="px-2 py-1 rounded-lg font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/15 tap-scale">📍 네이버</button>' +
+                  '<button type="button" data-action="open-gmap" data-id="' + c.id + '" class="px-2 py-1 rounded-lg font-semibold text-blue-600 dark:text-blue-400 bg-blue-500/15 tap-scale">🗺️ 구글</button>' +
+                  '<button type="button" data-action="next-status" data-id="' + c.id + '" class="px-2.5 py-1 rounded-lg font-semibold tap-scale" style="background-color: var(--bg-secondary);">' +
+                    (c.status === '리뷰완료' ? '완료됨 ✓' : '다음 단계 →') + '</button>' +
+                '</div>' +
+              '</div>' +
+            '</div>'
+          );
+        }).join('');
+      }
+
+      function renderStats() {
+        var totalSaved = 0, totalSpent = 0, byPlatform = {};
+        state.campaigns.forEach(function (c) {
+          var saved = Number(c.savedAmount) || 0;
+          var spent = Number(c.spentAmount) || 0;
+          if (c.status === '방문완료' || c.status === '리뷰완료') {
+            totalSaved += saved;
+            totalSpent += spent;
+          }
+          if (!byPlatform[c.platform]) byPlatform[c.platform] = { count: 0, saved: 0 };
+          byPlatform[c.platform].count += 1;
+          byPlatform[c.platform].saved += saved;
+        });
+        state.trips.forEach(function (tr) {
+          tr.places.forEach(function (p) {
+            if (p.type !== '체험단식당') totalSpent += Number(p.cost) || 0;
+          });
+        });
+
+        document.getElementById('stat-total-saved').textContent = formatWon(totalSaved);
+        document.getElementById('stat-total-spent').textContent = formatWon(totalSpent);
+
+        var entries = Object.keys(byPlatform).map(function (k) {
+          return { name: k, count: byPlatform[k].count, saved: byPlatform[k].saved };
+        }).sort(function (a, b) { return b.saved - a.saved; });
+
+        var listEl = document.getElementById('stat-platform-list');
+        listEl.innerHTML = entries.length === 0
+          ? '<p class="text-xs" style="color: var(--text-secondary);">통계 데이터가 없습니다.</p>'
+          : entries.map(function (e) {
+              return '<div class="flex items-center justify-between text-sm">' +
+                '<div class="flex items-center gap-2"><span class="font-semibold">' + escapeHtml(e.name) + '</span>' +
+                '<span class="text-xs px-2 py-0.5 rounded-full" style="background-color: var(--bg-secondary); color: var(--text-secondary);">' + e.count + '건</span></div>' +
+                '<span class="font-bold" style="color: var(--accent);">' + formatWon(e.saved) + '</span></div>';
+            }).join('');
+
+        if (typeof Chart !== 'undefined') {
+          var ctx = document.getElementById('platform-chart').getContext('2d');
+          if (chartInstance) chartInstance.destroy();
+          var colors = ['#FF5A36', '#007AFF', '#34C759', '#AF52DE', '#FF9500', '#5AC8FA'];
+          chartInstance = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+              labels: entries.map(function (e) { return e.name; }),
+              datasets: [{ data: entries.map(function (e) { return e.saved; }), backgroundColor: entries.map(function (_, i) { return colors[i % colors.length]; }), borderWidth: 0 }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, padding: 14 } } } }
+          });
+        }
+      }
+
+      function renderPlatformsManage() {
+        document.getElementById('platform-manage-list').innerHTML = state.platforms.map(function (p) {
+          var count = state.campaigns.filter(function (c) { return c.platform === p; }).length;
+          return '<div class="flex items-center justify-between py-2 px-3 rounded-xl" style="background-color: var(--bg-secondary);">' +
+            '<div><span class="text-sm font-semibold">' + escapeHtml(p) + '</span><span class="ml-2 text-xs" style="color: var(--text-secondary);">(' + count + '건)</span></div>' +
+            '<button type="button" data-del-plat="' + escapeHtml(p) + '" class="text-xs text-red-500 font-semibold px-2 py-1">삭제</button></div>';
+        }).join('');
+      }
+
+      function updateTpTypeUI() {
+        document.querySelectorAll('.tp-type-btn').forEach(function (btn) {
+          var active = btn.getAttribute('data-tp-type') === selectedTpType;
+          btn.style.backgroundColor = active ? (selectedTpType === '체험단식당' ? 'var(--accent)' : 'var(--trip-accent)') : 'var(--bg-secondary)';
+          btn.style.color = active ? '#FFFFFF' : 'var(--text-primary)';
+        });
+        var isRev = selectedTpType === '체험단식당';
+        document.getElementById('tp-review-fields').classList.toggle('hidden', !isRev);
+        document.getElementById('tp-normal-fields').classList.toggle('hidden', isRev);
+      }
+
+      function openTripPlaceModal(place) {
+        var trip = getCurrentTrip();
+        if (!trip) { showToast('먼저 여행을 만들어 주세요'); return; }
+        editingPlaceId = place ? place.id : null;
+        document.getElementById('tp-modal-title').textContent = place ? '여행 장소 수정' : '여행 장소 추가';
+
+        var daySel = document.getElementById('tp-day');
+        daySel.innerHTML = [1, 2, 3, 4, 5].map(function (n) {
+          var dl = getTripDayDateLabel(trip, n);
+          return '<option value="' + n + '">Day ' + n + (dl ? ' (' + dl + ')' : '') + '</option>';
+        }).join('');
+
+        var platSel = document.getElementById('tp-platform');
+        platSel.innerHTML = state.platforms.map(function (p) {
+          return '<option value="' + escapeHtml(p) + '">' + escapeHtml(p) + '</option>';
+        }).join('');
+
+        var linkSel = document.getElementById('tp-link-campaign');
+        linkSel.innerHTML = '<option value="">+ 새로 연동 등록하기</option>' +
+          state.campaigns.map(function (c) {
+            return '<option value="' + c.id + '">[' + escapeHtml(c.platform) + '] ' + escapeHtml(c.place) + '</option>';
+          }).join('');
+
+        if (place) {
+          selectedTpType = place.type || '일반식당';
+          document.getElementById('tp-day').value = String(place.day || 1);
+          document.getElementById('tp-time').value = place.time || '';
+          document.getElementById('tp-name').value = place.name || '';
+          document.getElementById('tp-map-url').value = place.mapUrl || '';
+          document.getElementById('tp-cost').value = place.cost || '';
+          document.getElementById('tp-memo').value = place.memo || '';
+          var linked = place.campaignId ? state.campaigns.find(function (c) { return c.id === place.campaignId; }) : null;
+          if (linked) {
+            linkSel.value = linked.id;
+            platSel.value = linked.platform;
+            document.getElementById('tp-due-date').value = linked.dueDate || '';
+            document.getElementById('tp-benefit').value = linked.benefit || '';
+            document.getElementById('tp-saved').value = linked.savedAmount || '';
+            document.getElementById('tp-spent').value = linked.spentAmount || '';
+          }
+          document.getElementById('btn-delete-tp').classList.remove('hidden');
+        } else {
+          document.getElementById('form-trip-place').reset();
+          selectedTpType = '일반식당';
+          document.getElementById('tp-day').value = state.tripDayFilter !== '전체' ? state.tripDayFilter.replace('Day ', '') : '1';
+          document.getElementById('btn-delete-tp').classList.add('hidden');
+        }
+        updateTpTypeUI();
+        lockBodyScroll();
+        document.getElementById('trip-place-modal').classList.remove('hidden');
+      }
+
+      function closeTripPlaceModal() {
+        document.getElementById('trip-place-modal').classList.add('hidden');
+        unlockBodyScroll();
+        editingPlaceId = null;
+      }
+
+      function openCampaignModal(campaign) {
+        editingCampaignId = campaign ? campaign.id : null;
+        document.getElementById('modal-title').textContent = campaign ? '체험단 수정' : '새 체험단 등록';
+        var select = document.getElementById('field-platform');
+        select.innerHTML = state.platforms.map(function (p) {
+          return '<option value="' + escapeHtml(p) + '">' + escapeHtml(p) + '</option>';
+        }).join('');
+
+        if (campaign) {
+          if (state.platforms.indexOf(campaign.platform) === -1) {
+            select.innerHTML += '<option value="' + escapeHtml(campaign.platform) + '">' + escapeHtml(campaign.platform) + '</option>';
+          }
+          select.value = campaign.platform;
+          document.getElementById('field-status').value = campaign.status;
+          document.getElementById('field-place').value = campaign.place;
+          document.getElementById('field-map-url').value = campaign.mapUrl || '';
+          document.getElementById('field-benefit').value = campaign.benefit || '';
+          document.getElementById('field-saved').value = campaign.savedAmount || '';
+          document.getElementById('field-spent').value = campaign.spentAmount || '';
+          document.getElementById('field-visit-date').value = campaign.visitDate || '';
+          document.getElementById('field-due-date').value = campaign.dueDate || '';
+          document.getElementById('field-keywords').value = campaign.keywords || '';
+          document.getElementById('field-photo-count').value = campaign.photoCount || '';
+          document.getElementById('field-memo').value = campaign.memo || '';
+          document.getElementById('btn-delete-campaign').classList.remove('hidden');
+        } else {
+          document.getElementById('form-campaign').reset();
+          document.getElementById('field-status').value = '선정·예약';
+          document.getElementById('btn-delete-campaign').classList.add('hidden');
+        }
+        lockBodyScroll();
+        document.getElementById('campaign-modal').classList.remove('hidden');
+      }
+
+      function closeCampaignModal() {
+        document.getElementById('campaign-modal').classList.add('hidden');
+        unlockBodyScroll();
+        editingCampaignId = null;
+      }
+
+      // Bindings
+      document.getElementById('btn-theme-toggle').addEventListener('click', function () {
+        state.theme = state.theme === 'dark' ? 'light' : 'dark';
+        saveState();
+        applyTheme();
+      });
+
+      document.getElementById('btn-header-add').addEventListener('click', function () {
+        if (state.activeTab === 'trip') openTripPlaceModal(null);
+        else if (state.activeTab === 'reviews') openCampaignModal(null);
+      });
+
+      document.querySelectorAll('.nav-tab').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          state.activeTab = btn.getAttribute('data-tab');
+          saveState();
+          renderTabs();
+        });
+      });
+
+      // Trip Tabs & Filters
+      document.getElementById('trip-tabs-row').addEventListener('click', function (e) {
+        var btn = e.target.closest('button[data-trip-id]');
+        if (!btn) return;
+        state.activeTripId = btn.getAttribute('data-trip-id');
+        state.tripDayFilter = '전체';
+        saveState();
+        renderTrip();
+      });
+
+      document.getElementById('trip-day-filter').addEventListener('click', function (e) {
+        var btn = e.target.closest('button[data-day]');
+        if (!btn) return;
+        state.tripDayFilter = btn.getAttribute('data-day');
+        renderTrip();
+      });
+
+      document.getElementById('trip-type-filter').addEventListener('click', function (e) {
+        var btn = e.target.closest('button[data-tp-filter]');
+        if (!btn) return;
+        state.tripTypeFilter = btn.getAttribute('data-tp-filter');
+        renderTrip();
+      });
+
+      document.getElementById('trip-place-list').addEventListener('click', function (e) {
+        var btn = e.target.closest('button[data-tp-action]');
+        if (!btn) return;
+        var trip = getCurrentTrip();
+        if (!trip) return;
+        var action = btn.getAttribute('data-tp-action');
+        if (action === 'go-review') {
+          var cid = btn.getAttribute('data-cid');
+          var camp = state.campaigns.find(function (c) { return c.id === cid; });
+          if (camp) openCampaignModal(camp);
+          return;
+        }
+        var pid = btn.getAttribute('data-id');
+        var place = trip.places.find(function (p) { return p.id === pid; });
+        if (!place) return;
+        if (action === 'edit') openTripPlaceModal(place);
+        else if (action === 'map') openNaverMap(place.name, place.mapUrl);
+        else if (action === 'gmap') openGoogleMap(place.name, '');
+      });
+
+      // Trip Place Modal Events
+      document.querySelectorAll('.tp-type-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          selectedTpType = btn.getAttribute('data-tp-type');
+          updateTpTypeUI();
+        });
+      });
+
+      document.getElementById('tp-link-campaign').addEventListener('change', function () {
+        var cid = this.value;
+        if (!cid) return;
+        var c = state.campaigns.find(function (item) { return item.id === cid; });
+        if (!c) return;
+        document.getElementById('tp-name').value = c.place;
+        document.getElementById('tp-map-url').value = c.mapUrl || '';
+        document.getElementById('tp-platform').value = c.platform;
+        document.getElementById('tp-due-date').value = c.dueDate || '';
+        document.getElementById('tp-benefit').value = c.benefit || '';
+        document.getElementById('tp-saved').value = c.savedAmount || '';
+        document.getElementById('tp-spent').value = c.spentAmount || '';
+      });
+
+      document.getElementById('btn-tp-naver-search').addEventListener('click', function () {
+        var name = document.getElementById('tp-name').value.trim();
+        if (!name) { showToast('먼저 식당/장소명을 입력해 주세요'); return; }
+        openNaverMap(name, '');
+      });
+
+      document.getElementById('btn-tp-google-search').addEventListener('click', function () {
+        var name = document.getElementById('tp-name').value.trim();
+        if (!name) { showToast('먼저 식당/장소명을 입력해 주세요'); return; }
+        openGoogleMap(name, '');
+      });
+
+      document.getElementById('btn-close-tp-modal').addEventListener('click', closeTripPlaceModal);
+
+      document.getElementById('form-trip-place').addEventListener('submit', function (e) {
+        e.preventDefault();
+        var trip = getCurrentTrip();
+        if (!trip) return;
+        var name = document.getElementById('tp-name').value.trim();
+        if (!name) return;
+
+        var existingPlace = editingPlaceId ? trip.places.find(function (p) { return p.id === editingPlaceId; }) : null;
+        var linkedCampaignId = null;
+
+        if (selectedTpType === '체험단식당') {
+          var chosenCid = document.getElementById('tp-link-campaign').value || (existingPlace && existingPlace.campaignId);
+          var campData = {
+            id: chosenCid || ('c_' + Date.now()),
+            platform: document.getElementById('tp-platform').value,
+            place: name,
+            tripName: trip.name,
+            status: '선정·예약',
+            benefit: document.getElementById('tp-benefit').value.trim(),
+            savedAmount: Number(document.getElementById('tp-saved').value) || 0,
+            spentAmount: Number(document.getElementById('tp-spent').value) || 0,
+            visitDate: trip.startDate || '',
+            dueDate: document.getElementById('tp-due-date').value,
+            mapUrl: document.getElementById('tp-map-url').value.trim(),
+            keywords: '',
+            photoCount: 15,
+            checks: { keyword: false, photos: false, map: false, sponsor: false },
+            memo: document.getElementById('tp-memo').value.trim()
+          };
+          var idx = state.campaigns.findIndex(function (c) { return c.id === campData.id; });
+          if (idx !== -1) {
+            campData.status = state.campaigns[idx].status;
+            campData.keywords = state.campaigns[idx].keywords || '';
+            campData.photoCount = state.campaigns[idx].photoCount || 15;
+            campData.checks = state.campaigns[idx].checks || campData.checks;
+            state.campaigns[idx] = campData;
+          } else {
+            state.campaigns.unshift(campData);
+          }
+          linkedCampaignId = campData.id;
+        }
+
+        var placeObj = {
+          id: editingPlaceId || ('tp_' + Date.now()),
+          day: Number(document.getElementById('tp-day').value) || 1,
+          time: document.getElementById('tp-time').value,
+          type: selectedTpType,
+          name: name,
+          mapUrl: document.getElementById('tp-map-url').value.trim(),
+          cost: Number(document.getElementById('tp-cost').value) || 0,
+          campaignId: linkedCampaignId,
+          memo: document.getElementById('tp-memo').value.trim()
+        };
+
+        if (editingPlaceId) {
+          trip.places = trip.places.map(function (p) { return p.id === editingPlaceId ? placeObj : p; });
+          showToast(selectedTpType === '체험단식당' ? '수정 및 체험단 연동 완료' : '수정되었습니다');
+        } else {
+          trip.places.push(placeObj);
+          showToast(selectedTpType === '체험단식당' ? '추가 및 체험단 탭 자동 연동 완료' : '일정에 추가되었습니다');
+        }
+        saveState();
+        closeTripPlaceModal();
+        renderTrip();
+      });
+
+      document.getElementById('btn-delete-tp').addEventListener('click', function () {
+        var trip = getCurrentTrip();
+        if (!trip || !editingPlaceId) return;
+        trip.places = trip.places.filter(function (p) { return p.id !== editingPlaceId; });
+        saveState();
+        closeTripPlaceModal();
+        renderTrip();
+        showToast('삭제되었습니다');
+      });
+
+      // Trip Project Modal
+      document.getElementById('btn-new-trip').addEventListener('click', function () {
+        editingTripId = null;
+        document.getElementById('trip-modal-title').textContent = '새 여행 만들기';
+        document.getElementById('form-trip').reset();
+        document.getElementById('btn-delete-trip').classList.add('hidden');
+        lockBodyScroll();
+        document.getElementById('trip-modal').classList.remove('hidden');
+      });
+
+      document.getElementById('btn-edit-trip').addEventListener('click', function () {
+        var trip = getCurrentTrip();
+        if (!trip) return;
+        editingTripId = trip.id;
+        document.getElementById('trip-modal-title').textContent = '여행 정보 수정';
+        document.getElementById('trip-name-input').value = trip.name;
+        document.getElementById('trip-start-input').value = trip.startDate || '';
+        document.getElementById('trip-end-input').value = trip.endDate || '';
+        document.getElementById('btn-delete-trip').classList.toggle('hidden', state.trips.length <= 1);
+        lockBodyScroll();
+        document.getElementById('trip-modal').classList.remove('hidden');
+      });
+
+      document.getElementById('btn-close-trip-modal').addEventListener('click', function () {
+        document.getElementById('trip-modal').classList.add('hidden');
+        unlockBodyScroll();
+      });
+
+      document.getElementById('form-trip').addEventListener('submit', function (e) {
+        e.preventDefault();
+        var name = document.getElementById('trip-name-input').value.trim();
+        if (!name) return;
+        var startDate = document.getElementById('trip-start-input').value;
+        var endDate = document.getElementById('trip-end-input').value;
+        if (editingTripId) {
+          state.trips = state.trips.map(function (t) {
+            return t.id === editingTripId ? Object.assign({}, t, { name: name, startDate: startDate, endDate: endDate }) : t;
+          });
+          showToast('여행 정보가 수정되었습니다');
+        } else {
+          var newTrip = { id: 'tr_' + Date.now(), name: name, startDate: startDate, endDate: endDate, places: [] };
+          state.trips.unshift(newTrip);
+          state.activeTripId = newTrip.id;
+          showToast('새 여행이 추가되었습니다');
+        }
+        saveState();
+        document.getElementById('trip-modal').classList.add('hidden');
+        unlockBodyScroll();
+        renderTrip();
+      });
+
+      document.getElementById('btn-delete-trip').addEventListener('click', function () {
+        if (!editingTripId || state.trips.length <= 1) return;
+        state.trips = state.trips.filter(function (t) { return t.id !== editingTripId; });
+        state.activeTripId = state.trips[0].id;
+        saveState();
+        document.getElementById('trip-modal').classList.add('hidden');
+        unlockBodyScroll();
+        renderTrip();
+        showToast('여행이 삭제되었습니다');
+      });
+
+      // Review Tab Events
+      document.getElementById('input-search').addEventListener('input', renderReviews);
+      document.getElementById('status-filter-row').addEventListener('click', function (e) {
+        var btn = e.target.closest('button[data-status]');
+        if (!btn) return;
+        state.statusFilter = btn.getAttribute('data-status');
+        renderReviews();
+      });
+      document.getElementById('platform-filter-row').addEventListener('click', function (e) {
+        var btn = e.target.closest('button[data-plat]');
+        if (!btn) return;
+        state.platformFilter = btn.getAttribute('data-plat');
+        renderReviews();
+      });
+
+      document.getElementById('campaign-list').addEventListener('click', function (e) {
+        var btn = e.target.closest('button[data-action]');
+        if (!btn) return;
+        var action = btn.getAttribute('data-action');
+        var id = btn.getAttribute('data-id');
+        var target = state.campaigns.find(function (c) { return c.id === id; });
+        if (!target) return;
+
+        if (action === 'toggle-check') {
+          var key = btn.getAttribute('data-check');
+          if (!target.checks) target.checks = {};
+          target.checks[key] = !target.checks[key];
+          saveState();
+          renderReviews();
+        } else if (action === 'edit') {
+          openCampaignModal(target);
+        } else if (action === 'open-map') {
+          openNaverMap(target.place, target.mapUrl);
+        } else if (action === 'open-gmap') {
+          openGoogleMap(target.place, '');
+        } else if (action === 'next-status') {
+          var flow = ['신청함', '선정·예약', '방문완료', '리뷰완료'];
+          var idx = flow.indexOf(target.status);
+          if (idx !== -1 && idx < flow.length - 1) {
+            target.status = flow[idx + 1];
+            saveState();
+            renderReviews();
+            showToast('상태가 "' + target.status + '"(으)로 변경되었습니다');
+          }
+        }
+      });
+
+      document.getElementById('btn-close-modal').addEventListener('click', closeCampaignModal);
+      document.getElementById('btn-modal-naver-search').addEventListener('click', function () {
+        var place = document.getElementById('field-place').value.trim();
+        if (!place) { showToast('먼저 식당/업체명을 입력해 주세요'); return; }
+        openNaverMap(place, '');
+      });
+
+      document.getElementById('btn-modal-google-search').addEventListener('click', function () {
+        var place = document.getElementById('field-place').value.trim();
+        if (!place) { showToast('먼저 식당/업체명을 입력해 주세요'); return; }
+        openGoogleMap(place, '');
+      });
+
+      document.getElementById('form-campaign').addEventListener('submit', function (e) {
+        e.preventDefault();
+        var prev = editingCampaignId ? state.campaigns.find(function (c) { return c.id === editingCampaignId; }) : null;
+        var item = {
+          id: editingCampaignId || ('c_' + Date.now()),
+          platform: document.getElementById('field-platform').value,
+          status: document.getElementById('field-status').value,
+          place: document.getElementById('field-place').value.trim(),
+          tripName: prev ? (prev.tripName || '') : '',
+          mapUrl: document.getElementById('field-map-url').value.trim(),
+          benefit: document.getElementById('field-benefit').value.trim(),
+          savedAmount: Number(document.getElementById('field-saved').value) || 0,
+          spentAmount: Number(document.getElementById('field-spent').value) || 0,
+          visitDate: document.getElementById('field-visit-date').value,
+          dueDate: document.getElementById('field-due-date').value,
+          keywords: document.getElementById('field-keywords').value.trim(),
+          photoCount: Number(document.getElementById('field-photo-count').value) || 0,
+          checks: prev ? (prev.checks || {}) : { keyword: false, photos: false, map: false, sponsor: false },
+          memo: document.getElementById('field-memo').value.trim()
+        };
+        if (!item.place) return;
+        if (editingCampaignId) {
+          state.campaigns = state.campaigns.map(function (c) { return c.id === editingCampaignId ? item : c; });
+          showToast('체험단 내역이 수정되었습니다');
+        } else {
+          state.campaigns.unshift(item);
+          showToast('새 체험단이 등록되었습니다');
+        }
+        saveState();
+        closeCampaignModal();
+        renderTabs();
+      });
+
+      document.getElementById('btn-delete-campaign').addEventListener('click', function () {
+        if (!editingCampaignId) return;
+        state.campaigns = state.campaigns.filter(function (c) { return c.id !== editingCampaignId; });
+        saveState();
+        closeCampaignModal();
+        renderTabs();
+        showToast('삭제되었습니다');
+      });
+
+      // Platforms & Settings
+      document.getElementById('form-add-platform').addEventListener('submit', function (e) {
+        e.preventDefault();
+        var input = document.getElementById('input-new-platform');
+        var name = input.value.trim();
+        if (!name) return;
+        if (state.platforms.indexOf(name) !== -1) { showToast('이미 등록된 체험단입니다'); return; }
+        state.platforms.push(name);
+        input.value = '';
+        saveState();
+        renderPlatformsManage();
+        showToast(name + ' 사이트가 추가되었습니다');
+      });
+
+      document.getElementById('platform-manage-list').addEventListener('click', function (e) {
+        var btn = e.target.closest('button[data-del-plat]');
+        if (!btn) return;
+        var name = btn.getAttribute('data-del-plat');
+        if (state.platforms.length <= 1) { showToast('최소 1개는 남겨야 합니다'); return; }
+        state.platforms = state.platforms.filter(function (p) { return p !== name; });
+        if (state.platformFilter === name) state.platformFilter = '전체';
+        saveState();
+        renderPlatformsManage();
+        showToast('삭제되었습니다');
+      });
+
+      document.getElementById('btn-export-json').addEventListener('click', function () {
+        var text = JSON.stringify({ platforms: state.platforms, trips: state.trips, campaigns: state.campaigns }, null, 2);
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(function () { showToast('통합 백업 JSON이 복사되었습니다'); })
+            .catch(function () { fallbackCopy(text); });
+        } else {
+          fallbackCopy(text);
+        }
+      });
+
+      function fallbackCopy(text) {
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand('copy'); showToast('통합 백업 JSON이 복사되었습니다'); }
+        catch (e) { showToast('복사에 실패했습니다'); }
+        document.body.removeChild(ta);
+      }
+
+      document.getElementById('btn-open-import').addEventListener('click', function () {
+        document.getElementById('input-import-json').value = '';
+        lockBodyScroll();
+        document.getElementById('import-modal').classList.remove('hidden');
+      });
+
+      document.getElementById('btn-close-import').addEventListener('click', function () {
+        document.getElementById('import-modal').classList.add('hidden');
+        unlockBodyScroll();
+      });
+
+      document.getElementById('btn-confirm-import').addEventListener('click', function () {
+        try {
+          var parsed = JSON.parse(document.getElementById('input-import-json').value);
+          if (Array.isArray(parsed.trips)) state.trips = parsed.trips;
+          if (Array.isArray(parsed.campaigns)) state.campaigns = parsed.campaigns;
+          if (Array.isArray(parsed.platforms) && parsed.platforms.length > 0) state.platforms = parsed.platforms;
+          saveState();
+          renderTabs();
+          document.getElementById('import-modal').classList.add('hidden');
+          unlockBodyScroll();
+          showToast('데이터가 복원되었습니다');
+        } catch (e) {
+          showToast('올바른 JSON 형식이 아닙니다');
+        }
+      });
+
+      document.getElementById('btn-reset-all').addEventListener('click', function () {
+        state = JSON.parse(JSON.stringify(defaultState));
+        saveState();
+        applyTheme();
+        renderTabs();
+        showToast('초기화되었습니다');
+      });
+
+      applyTheme();
+      renderTabs();
+    })();
+  </script>
+</body>
+</html>
